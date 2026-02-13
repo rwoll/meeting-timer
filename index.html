@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timer Video</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #efefef;
+    --fg: #000;
+    --border: #000;
+    --track: #ddd;
+    --muted: #999;
+    --info: #666;
+    --input-bg: #fff;
+  }
+  .dark {
+    --bg: #111;
+    --fg: #fff;
+    --border: #fff;
+    --track: #333;
+    --muted: #888;
+    --info: #999;
+    --input-bg: #111;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--fg);
+    padding: 1rem;
+    transition: background 0.2s, color 0.2s;
+  }
+  h1 { margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--fg); }
+  #mainVideo {
+    width: 640px;
+    max-width: 90vw;
+    border: 2px solid var(--border);
+    display: block;
+  }
+  .controls {
+    margin-top: 1.2rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  button {
+    padding: 0.75rem 1.4rem;
+    border: 2px solid var(--border);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--bg);
+    color: var(--fg);
+    border-radius: 0;
+    transition: background 0.2s, color 0.2s;
+  }
+  button:hover { background: var(--fg); color: var(--bg); }
+  button:focus { outline: 2px dashed var(--border); outline-offset: 4px; }
+  button.active { background: var(--fg); color: var(--bg); }
+  .top-bar {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+  #themeBtn {
+    padding: 0.5rem 0.8rem;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+  .mode-selector {
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  .mode-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .mode-option label {
+    font-weight: 500;
+    cursor: pointer;
+  }
+  input[type="radio"] {
+    cursor: pointer;
+    accent-color: var(--fg);
+  }
+  input[type="text"], input[type="number"] {
+    padding: 0.75rem;
+    border: 2px solid var(--border);
+    background: var(--input-bg);
+    color: var(--fg);
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 0;
+    -webkit-appearance: none;
+  }
+  input[type="text"]:focus, input[type="number"]:focus {
+    outline: 2px dashed var(--border);
+    outline-offset: 2px;
+  }
+  .info-text {
+    font-size: 0.875rem;
+    color: var(--info);
+    margin-top: 0.5rem;
+  }
+  #audioBtn {
+    position: relative;
+    overflow: hidden;
+  }
+  #audioBtn.disabled::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(
+      to bottom left,
+      transparent calc(50% - 1.5px),
+      #cc0000 calc(50% - 1.5px),
+      #cc0000 calc(50% + 1.5px),
+      transparent calc(50% + 1.5px)
+    );
+    pointer-events: none;
+  }
+  .cue-section {
+    margin-top: 1.2rem;
+    margin-bottom: 1rem;
+    width: 640px;
+    max-width: 90vw;
+  }
+  .cue-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+  .cue-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: center;
+  }
+  .cue-row input[type="text"] {
+    flex: 1;
+  }
+  .cue-row input[type="color"] {
+    width: 42px;
+    height: 42px;
+    border: 2px solid var(--border);
+    padding: 2px;
+    background: var(--bg);
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .cue-row button {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.875rem;
+  }
+  .cue-list {
+    margin-top: 0.5rem;
+  }
+  .cue-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--border);
+    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
+  }
+  .cue-color-swatch {
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .cue-item-info {
+    flex: 1;
+  }
+  .cue-item button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <button id="shareBtn" style="margin-right: 0.4rem; padding: 0.5rem 0.8rem; font-size: 1.2rem; line-height: 1;">Share Link</button>
+  <button id="themeBtn">☾</button>
+</div>
+
+<h1>Timer</h1>
+
+<div class="mode-selector">
+  <div class="mode-option">
+    <input type="radio" id="modeStopwatch" name="mode" value="stopwatch" checked>
+    <label for="modeStopwatch">Stopwatch</label>
+  </div>
+  <div class="mode-option">
+    <input type="radio" id="modeCountdown" name="mode" value="countdown">
+    <label for="modeCountdown">Countdown</label>
+  </div>
+</div>
+
+<div id="countdownConfig" style="display: none; margin-bottom: 1rem;">
+  <input type="number" id="countdownMinutes" placeholder="Minutes" min="0" value="5" style="width: 80px;">
+  <input type="number" id="countdownSeconds" placeholder="Seconds" min="0" max="59" value="0" style="width: 80px;">
+  <span class="info-text">Set countdown duration (keeps counting overtime)</span>
+</div>
+
+<video id="mainVideo" autoplay muted></video>
+<video id="pipVideo" autoplay muted hidden></video>
+<canvas id="mainCanvas" hidden></canvas>
+<canvas id="pipCanvas" hidden></canvas>
+
+<div class="controls">
+  <button id="startBtn" class="active">Start</button>
+  <button id="stopBtn">Stop</button>
+  <button id="resetBtn">Reset</button>
+  <button id="audioBtn" class="active">Audio</button>
+  <button id="pipBtn">⧉ Picture-in-Picture</button>
+</div>
+
+<div class="cue-section">
+  <h2>Cue Points</h2>
+  <div class="info-text" style="margin-bottom: 0.75rem;">In countdown mode, time = remaining. In stopwatch mode, time = elapsed.</div>
+  <div class="cue-row">
+    <input type="text" id="cueTime" placeholder="MM:SS" style="width: 80px; flex: none;">
+    <input type="text" id="cueText" placeholder="Message (e.g. 2 MIN LEFT)">
+    <input type="color" id="cueColor" value="#cc0000">
+    <button id="addCueBtn">Add</button>
+  </div>
+  <div class="cue-list" id="cueList"></div>
+</div>
+
+<script>
+(function () {
+  const mainCanvas = document.getElementById('mainCanvas');
+  const mainCtx = mainCanvas.getContext('2d');
+  const pipCanvas = document.getElementById('pipCanvas');
+  const pipCtx = pipCanvas.getContext('2d');
+  const mainVideo = document.getElementById('mainVideo');
+  const pipVideo = document.getElementById('pipVideo');
+
+  const dpr = window.devicePixelRatio || 1;
+
+  mainCanvas.width = 640 * dpr;
+  mainCanvas.height = 360 * dpr;
+  mainCtx.scale(dpr, dpr);
+
+  pipCanvas.width = 240 * dpr;
+  pipCanvas.height = 72 * dpr;
+  pipCtx.scale(dpr, dpr);
+
+  mainVideo.srcObject = mainCanvas.captureStream(30);
+  pipVideo.srcObject = pipCanvas.captureStream(30);
+
+  let mode = 'stopwatch';
+  let elapsed = 0;
+  let countdownDuration = 300000; // 5 minutes in ms
+  let running = true;
+  let lastTime = performance.now();
+  let firedWarnings = new Set();
+  let lastAlertTime = 0;
+  const alertFlashDuration = 500; // milliseconds
+  let dark = false;
+  let cuePoints = []; // { timeMs, text, color }
+  let audioEnabled = true;
+
+  // --- URL parameter helpers ---
+  function parseUrlParams() {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return {};
+    try {
+      return JSON.parse(decodeURIComponent(hash));
+    } catch {
+      return {};
+    }
+  }
+
+  function updateUrl() {
+    const params = {};
+    params.mode = mode;
+    if (mode === 'countdown') {
+      params.cd = Math.round(countdownDuration / 1000);
+    }
+    if (dark) params.dark = 1;
+    if (cuePoints.length > 0) {
+      params.cues = cuePoints.map(c => ({
+        t: Math.round(c.timeMs / 1000),
+        m: c.text || undefined,
+        c: c.color
+      }));
+    }
+    window.history.replaceState(null, '', '#' + encodeURIComponent(JSON.stringify(params)));
+  }
+
+  function loadFromUrl() {
+    const p = parseUrlParams();
+    if (!p.mode) return;
+
+    mode = p.mode;
+    document.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;
+    document.getElementById('countdownConfig').style.display = mode === 'countdown' ? 'block' : 'none';
+
+    if (p.cd != null) {
+      countdownDuration = p.cd * 1000;
+      document.getElementById('countdownMinutes').value = Math.floor(p.cd / 60);
+      document.getElementById('countdownSeconds').value = p.cd % 60;
+    }
+
+    if (p.dark) {
+      dark = true;
+      document.body.classList.add('dark');
+      document.getElementById('themeBtn').textContent = '☀';
+    }
+
+    if (p.cues && Array.isArray(p.cues)) {
+      cuePoints = p.cues.map(c => ({
+        timeMs: c.t * 1000,
+        text: c.m || '',
+        color: c.c
+      }));
+      cuePoints.sort((a, b) => b.timeMs - a.timeMs);
+      renderCueList();
+    }
+  }
+
+  // Cue points management
+  document.getElementById('addCueBtn').addEventListener('click', addCue);
+  document.getElementById('cueTime').addEventListener('keydown', (e) => { if (e.key === 'Enter') addCue(); });
+  document.getElementById('cueText').addEventListener('keydown', (e) => { if (e.key === 'Enter') addCue(); });
+
+  function addCue() {
+    const timeStr = document.getElementById('cueTime').value.trim();
+    const text = document.getElementById('cueText').value.trim();
+    const color = document.getElementById('cueColor').value;
+    if (!timeStr) return;
+
+    const parts = timeStr.split(':');
+    const m = parseInt(parts[0]) || 0;
+    const s = parseInt(parts[1]) || 0;
+    const timeMs = (m * 60 + s) * 1000;
+    if (timeMs <= 0) return;
+
+    cuePoints.push({ timeMs, text: text || '', color });
+    cuePoints.sort((a, b) => b.timeMs - a.timeMs);
+
+    document.getElementById('cueTime').value = '';
+    document.getElementById('cueText').value = '';
+    renderCueList();
+    updateUrl();
+  }
+
+  function removeCue(index) {
+    cuePoints.splice(index, 1);
+    renderCueList();
+    updateUrl();
+  }
+
+  function renderCueList() {
+    const list = document.getElementById('cueList');
+    if (cuePoints.length === 0) {
+      list.innerHTML = '';
+      return;
+    }
+    list.innerHTML = cuePoints.map((cue, i) => {
+      const m = String(Math.floor(cue.timeMs / 60000)).padStart(2, '0');
+      const s = String(Math.floor((cue.timeMs % 60000) / 1000)).padStart(2, '0');
+      return `<div class="cue-item">
+        <div class="cue-color-swatch" style="background: ${cue.color}"></div>
+        <div class="cue-item-info"><strong>${m}:${s}</strong>${cue.text ? ' — ' + cue.text : ''}</div>
+        <button onclick="window._removeCue(${i})">✕</button>
+      </div>`;
+    }).join('');
+  }
+  window._removeCue = removeCue;
+
+  function getActiveCue() {
+    if (cuePoints.length === 0) return null;
+    if (mode === 'countdown') {
+      const remaining = countdownDuration - elapsed;
+      // Find the first cue whose time >= remaining (i.e. we've passed it)
+      // Cues sorted descending by time, so find last one where remaining <= cue.timeMs
+      for (let i = cuePoints.length - 1; i >= 0; i--) {
+        if (remaining <= cuePoints[i].timeMs) return cuePoints[i];
+      }
+      return null;
+    } else {
+      // Stopwatch / warning: elapsed time triggers
+      for (let i = cuePoints.length - 1; i >= 0; i--) {
+        if (elapsed >= cuePoints[i].timeMs) return cuePoints[i];
+      }
+      return null;
+    }
+  }
+
+  // Theme toggle
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    dark = !dark;
+    document.body.classList.toggle('dark', dark);
+    this.textContent = dark ? '☀' : '☾';
+    updateUrl();
+  });
+
+  // Share button
+  document.getElementById('shareBtn').addEventListener('click', function () {
+    updateUrl();
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      const orig = this.textContent;
+      this.textContent = 'Copied!';
+      setTimeout(() => { this.textContent = orig; }, 1500);
+    });
+  });
+
+  // Mode selector
+  document.querySelectorAll('input[name="mode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      mode = e.target.value;
+      document.getElementById('countdownConfig').style.display = mode === 'countdown' ? 'block' : 'none';
+      elapsed = 0;
+      firedWarnings.clear();
+      running = false;
+      lastTime = performance.now();
+      updateButtonStates();
+      updateUrl();
+    });
+  });
+
+  // Countdown helpers
+  document.getElementById('countdownMinutes').addEventListener('change', updateCountdownDuration);
+  document.getElementById('countdownSeconds').addEventListener('change', updateCountdownDuration);
+
+  function updateCountdownDuration() {
+    const m = parseInt(document.getElementById('countdownMinutes').value) || 0;
+    const s = parseInt(document.getElementById('countdownSeconds').value) || 0;
+    countdownDuration = (m * 60 + s) * 1000;
+    updateUrl();
+  }
+
+  function updateButtonStates() {
+    document.getElementById('stopBtn').classList.add('active');
+    document.getElementById('startBtn').classList.remove('active');
+  }
+
+  function formatTime(ms) {
+    const totalSec = Math.floor(Math.abs(ms) / 1000);
+    const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+    const sign = ms < 0 ? '+' : '';
+    return sign + m + ':' + s;
+  }
+
+  function getDisplayTime() {
+    if (mode === 'stopwatch') {
+      return elapsed;
+    } else if (mode === 'countdown') {
+      return countdownDuration - elapsed;
+    } else {
+      return elapsed;
+    }
+  }
+
+  function isOvertime() {
+    return mode === 'countdown' && elapsed > countdownDuration;
+  }
+
+  function getLabel() {
+    if (mode === 'stopwatch') return 'STOPWATCH';
+    if (mode === 'countdown') return isOvertime() ? 'OVERTIME' : 'COUNTDOWN';
+    return 'TIMER';
+  }
+
+  function checkWarnings() {
+    if (mode === 'countdown') {
+      const remaining = countdownDuration - elapsed;
+      if (remaining <= 0 && !firedWarnings.has('complete')) {
+        firedWarnings.add('complete');
+        playAlert();
+      }
+    }
+  }
+
+  function playAlert() {
+    lastAlertTime = performance.now();
+    if (!audioEnabled) return;
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+  }
+
+  // Returns white or black depending on which contrasts better with the given hex color
+  function contrastingColor(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    // Relative luminance (sRGB)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+  }
+
+  function draw(now) {
+    if (running) {
+      elapsed += now - lastTime;
+      checkWarnings();
+    }
+    lastTime = now;
+
+    const displayTime = getDisplayTime();
+    const timeStr = formatTime(displayTime);
+    const overtime = isOvertime();
+    
+    // Check if we're in alert flash period
+    const timeSinceAlert = now - lastAlertTime;
+    const isFlashing = timeSinceAlert < alertFlashDuration;
+    const flashIntensity = isFlashing ? Math.max(0, 1 - (timeSinceAlert / alertFlashDuration)) : 0;
+
+    // Main canvas (full with ring)
+    const w = 640, h = 360;
+    const canvasBg = dark ? '#111111' : '#ffffff';
+    const canvasFg = dark ? '#ffffff' : '#000000';
+    const canvasTrack = dark ? '#333333' : '#dddddd';
+    const canvasMuted = dark ? '#888888' : '#999999';
+    const canvasOvertime = '#cc0000';
+
+    // Determine active cue
+    const activeCue = getActiveCue();
+    const cueColor = activeCue ? activeCue.color : null;
+    const cueText = activeCue ? activeCue.text : null;
+    const bgColor = overtime ? canvasOvertime : (cueColor || canvasBg);
+    const contrastText = overtime ? '#ffffff' : (cueColor ? contrastingColor(cueColor) : canvasFg);
+    const labelText = overtime ? 'OVERTIME' : (cueText || getLabel());
+
+    mainCtx.fillStyle = bgColor;
+    mainCtx.fillRect(0, 0, w, h);
+
+    const cx = w / 2, cy = h / 2;
+
+    mainCtx.fillStyle = contrastText;
+    mainCtx.font = 'bold 48px monospace';
+    mainCtx.textAlign = 'center';
+    mainCtx.textBaseline = 'middle';
+    mainCtx.fillText(timeStr, cx, cy);
+
+    // Label or cue text
+    mainCtx.fillStyle = contrastText;
+    mainCtx.font = cueText ? 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif' : '500 14px -apple-system, BlinkMacSystemFont, sans-serif';
+    mainCtx.fillText(labelText, cx, cy + 40);
+
+    // Progress bar for countdown mode
+    if (mode === 'countdown') {
+      const barY = h - 30;
+      const barH = 14;
+      const barMargin = 40;
+      const barW = w - barMargin * 2;
+      const progress = Math.min(1, elapsed / countdownDuration);
+      const barFg = contrastText;
+
+      // Track
+      mainCtx.fillStyle = cueColor ? contrastText + '33' : canvasTrack;
+      mainCtx.fillRect(barMargin, barY, barW, barH);
+
+      // Fill
+      mainCtx.fillStyle = barFg;
+      mainCtx.fillRect(barMargin, barY, barW * progress, barH);
+
+      // Border
+      mainCtx.strokeStyle = barFg;
+      mainCtx.lineWidth = 2;
+      mainCtx.strokeRect(barMargin, barY, barW, barH);
+    }
+
+    // PiP canvas (compact text only)
+    const pw = 240, ph = 72;
+    pipCtx.fillStyle = bgColor;
+    pipCtx.fillRect(0, 0, pw, ph);
+    pipCtx.fillStyle = contrastText;
+    pipCtx.font = 'bold 26px monospace';
+    pipCtx.textAlign = 'center';
+    pipCtx.textBaseline = 'middle';
+    pipCtx.fillText(timeStr, pw / 2, ph / 2 - 8);
+
+    // Cue message in PiP
+    if (cueText) {
+      pipCtx.fillStyle = contrastText;
+      pipCtx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      pipCtx.fillText(cueText, pw / 2, ph / 2 + 14);
+    }
+
+    // PiP progress bar for countdown mode
+    if (mode === 'countdown') {
+      const pipBarY = ph - 8;
+      const pipBarH = 6;
+      const pipBarMargin = 8;
+      const pipBarW = pw - pipBarMargin * 2;
+      const progress = Math.min(1, elapsed / countdownDuration);
+
+      pipCtx.fillStyle = cueColor ? contrastText + '33' : canvasTrack;
+      pipCtx.fillRect(pipBarMargin, pipBarY, pipBarW, pipBarH);
+
+      pipCtx.fillStyle = contrastText;
+      pipCtx.fillRect(pipBarMargin, pipBarY, pipBarW * progress, pipBarH);
+
+      // Border
+      pipCtx.strokeStyle = contrastText;
+      pipCtx.lineWidth = 1;
+      pipCtx.strokeRect(pipBarMargin, pipBarY, pipBarW, pipBarH);
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+
+  // Load config from URL on startup
+  loadFromUrl();
+
+  // Controls
+  document.getElementById('startBtn').addEventListener('click', function () {
+    if (!running) { lastTime = performance.now(); running = true; }
+    this.classList.add('active');
+    document.getElementById('stopBtn').classList.remove('active');
+  });
+
+  document.getElementById('stopBtn').addEventListener('click', function () {
+    running = false;
+    this.classList.add('active');
+    document.getElementById('startBtn').classList.remove('active');
+  });
+
+  document.getElementById('audioBtn').addEventListener('click', function () {
+    audioEnabled = !audioEnabled;
+    this.classList.toggle('active', audioEnabled);
+    this.classList.toggle('disabled', !audioEnabled);
+  });
+
+  document.getElementById('pipBtn').addEventListener('click', async function () {
+    try {
+      if (documentPictureInPicture && documentPictureInPicture.window) {
+        documentPictureInPicture.window.close();
+        return;
+      }
+
+      const pipWindow = await documentPictureInPicture.requestWindow({
+        width: 240,
+        height: 72,
+      });
+
+      const style = document.createElement('style');
+      style.textContent = 'body { margin: 0; overflow: hidden; } video { width: 100%; height: 100%; object-fit: cover; display: block; }';
+      pipWindow.document.head.appendChild(style);
+
+      pipWindow.document.body.append(pipVideo);
+      pipVideo.hidden = false;
+
+      pipWindow.addEventListener('pagehide', () => {
+        pipVideo.hidden = true;
+        document.body.append(pipVideo);
+      });
+    } catch (e) {
+      console.error('PiP error:', e);
+      alert('Picture-in-Picture failed: ' + e.message);
+    }
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    elapsed = 0;
+    firedWarnings.clear();
+    running = false;
+    lastTime = performance.now();
+    updateButtonStates();
+  });
+})();
+</script>
+</body>
+</html>
